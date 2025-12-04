@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="page-title">Your Favourites</h2>
+
+{% if favourites|length == 0 %}
+  <p>You do not have any favourites yet.</p>
+{% else %}
+  <div class="grid-3x3">
+    {% for f in favourites %}
+    <div class="card">
+      <div class="card-media">
+        {% if f.image %}
+          <img src="{{ f.image }}" alt="{{ f.name }}">
+        {% else %}
+          <img src="https://via.placeholder.com/460x215?text=No+Image" alt="No image">
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <h3 class="card-title">{{ f.name }}</h3>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="{{ url_for('game_detail', appid=f.appid) }}">Details</a>
+          <form method="post" action="{{ url_for('favourites_remove') }}" class="inline-form">
+            <input type="hidden" name="appid" value="{{ f.appid }}">
+            <button class="btn btn-ghost" type="submit">Remove</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

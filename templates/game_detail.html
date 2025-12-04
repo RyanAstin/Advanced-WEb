@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="page-title">{{ game.name }}</h2>
+
+<div class="detail-page">
+
+  <div>
+    {% if game.header_image %}
+      <img class="detail-hero" src="{{ game.header_image }}" alt="{{ game.name }}">
+    {% endif %}
+
+    {% if game.trailer_url %}
+      <div class="video-wrap">
+        <video class="trailer" controls playsinline preload="metadata" poster="{{ game.header_image }}">
+          <source src="{{ game.trailer_url }}" type="video/webm">
+          Your browser does not support embedded video.
+        </video>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="detail-info">
+    <p>{{ game.short_description }}</p>
+
+    <p><strong>Genres:</strong> {{ game.genres|join(', ') }}</p>
+
+    <p><strong>Price:</strong> {{ game.price }}</p>
+
+    <a href="{{ game.store_link }}" target="_blank" class="btn btn-primary">View on Steam</a>
+
+    <form class="inline-form" method="POST" action="{{ url_for('favourites_add') }}">
+      <input type="hidden" name="appid" value="{{ game.appid }}">
+      <input type="hidden" name="name" value="{{ game.name }}">
+      <input type="hidden" name="image" value="{{ game.header_image }}">
+      <button class="btn btn-ghost" style="margin-top: 10px;">Add to Favourites</button>
+    </form>
+  </div>
+</div>
+
+<hr style="border:0; border-top:1px solid rgba(255,255,255,0.08); margin:30px 0;">
+
+<h3 class="page-title">Reviews</h3>
+
+<div class="card review-form" style="padding:16px; margin-bottom:20px;">
+  <form method="POST" action="{{ url_for('add_review_route', appid=game.appid) }}">
+    <label style="color:var(--muted);">Rating</label>
+    <select name="rating" required style="padding:10px; width:100%; margin:8px 0; border-radius:8px;">
+      <option value="">Select rating</option>
+      <option value="1">1 / 5</option>
+      <option value="2">2 / 5</option>
+      <option value="3">3 / 5</option>
+      <option value="4">4 / 5</option>
+      <option value="5">5 / 5</option>
+    </select>
+
+    <label style="color:var(--muted);">Review</label>
+    <textarea name="text" rows="4" required style="width:100%; padding:10px; border-radius:8px; margin-top:6px;"></textarea>
+
+    <button class="btn btn-primary" style="width:100%; margin-top:10px;">Submit Review</button>
+  </form>
+</div>
+
+<div class="reviews-list">
+  {% if reviews %}
+    {% for r in reviews %}
+      <div class="card" style="padding:14px; margin-bottom:12px;">
+        <div class="review-rating">Rating: {{ r.rating }}/5</div>
+        <div class="review-text">{{ r.text }}</div>
+        <div style="color:var(--muted); font-size:12px; margin-top:8px;">
+          {{ (r.created_at | int) | datetimeformat }}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:var(--muted);">No reviews yet, be the first.</p>
+  {% endif %}
+</div>
+{% endblock %}

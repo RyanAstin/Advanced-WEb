@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="page-title">Search results for "{{ query }}"</h2>
+
+{% if results|length == 0 %}
+  <p>No games found.</p>
+{% else %}
+  <div class="grid-3x3">
+    {% for g in results %}
+    <div class="card">
+      <div class="card-media">
+        {% if g.header_image %}
+          <img src="{{ g.header_image }}" alt="{{ g.name }}">
+        {% else %}
+          <img src="https://via.placeholder.com/460x215?text=No+Image" alt="No image">
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <h3 class="card-title">{{ g.name }}</h3>
+        <p class="meta">{% if g.genres %}{{ g.genres|join(', ') }} • {% endif %}{{ g.price }}</p>
+        <div class="card-actions">
+          <a class="btn btn-primary" href="{{ url_for('game_detail', appid=g.appid) }}">Details</a>
+
+          <form method="post" action="{{ url_for('favourites_add') }}" class="inline-form">
+            <input type="hidden" name="appid" value="{{ g.appid }}">
+            <input type="hidden" name="name" value="{{ g.name }}">
+            <input type="hidden" name="image" value="{{ g.header_image }}">
+            <button class="btn btn-ghost" type="submit">+ Favourite</button>
+          </form>
+
+          <a class="btn btn-outline" href="{{ g.store_link }}" target="_blank">Store</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

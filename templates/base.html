@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Games Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="{{ url_for('index') }}">Games Hub</a>
+      <form class="search-form" method="get" action="{{ url_for('search') }}">
+        <input name="q" type="search" placeholder="Search games (e.g. Grand Theft Auto)" required>
+        <button type="submit">Search</button>
+      </form>
+      <nav class="header-links">
+        <a href="{{ url_for('favourites_page') }}" class="fav-link">Favourites</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alerts">
+          {% for cat, msg in messages %}
+            <div class="alert">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">Games Hub, Game Explorer</div>
+  </footer>
+</body>
+</html>

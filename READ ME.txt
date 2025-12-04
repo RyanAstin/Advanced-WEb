@@ -1,0 +1,50 @@
+READ ME
+How To Run (Windows PowerShell)
+
+
+Example:
+
+cd C:\apps\uv-x86_64-pc-windows-msvc\set09103\video_games_hub1
+
+Create a Virtual Environment
+
+Run this command:
+
+python -m venv venv (if needed)
+
+Activate the Virtual Environment
+
+Run:
+
+.\venv\Scripts\activate
+
+Once activated you should see:
+
+(venv) PS C:\your\path\here>
+
+This means it is active.
+
+Install All Required Packages
+
+Run:
+
+pip install -r requirements.txt
+pip install flask
+pip install flask_sqlalchemy
+pip install requests
+
+
+
+
+Run The Project:
+
+
+python app.py
+
+You should see something like:
+
+Running on http://127.0.0.1:5000
+
+Open your web browser and visit:
+
+http://127.0.0.1:5000
