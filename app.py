@@ -9,13 +9,10 @@ from flask_sqlalchemy import SQLAlchemy
 
 
 
-
 APP_DIR = pathlib.Path(__file__).parent.resolve()
 DATA_DIR = APP_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
 DB_URI = f"sqlite:///{DB_PATH}"
-
-APP_LIST_TTL = 24 * 60 * 60
 
 app = Flask(__name__)
 app.secret_key = "replace-with-a-real-secret-for-prod"
@@ -25,7 +22,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
-# Database models
+
+
+# Database Models
 
 class Favourite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -57,6 +56,8 @@ class Review(db.Model):
 
 
 
+# Setup
+
 
 def ensure_data_dir():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -69,7 +70,9 @@ def init_db():
 
 
 
-# Favourites DB
+
+# Favourites
+
 
 def get_all_favourites():
     rows = Favourite.query.order_by(Favourite.added_at.desc()).all()
@@ -77,7 +80,6 @@ def get_all_favourites():
 
 
 def add_favourite_db(appid, name, image):
-    # prevent duplicates
     existing = Favourite.query.filter_by(appid=int(appid)).first()
     if existing:
         return False
@@ -97,7 +99,9 @@ def remove_favourite_db(appid):
 
 
 
-# Reviews DB
+
+# Reviews
+
 
 def get_reviews_for_app(appid):
     rows = Review.query.filter_by(appid=int(appid)).order_by(Review.created_at.desc()).all()
@@ -112,7 +116,32 @@ def add_review_db(appid, rating, text):
 
 
 
-# Steam API's
+
+# YouTube Fallback
+
+
+def search_youtube_trailer(game_name):
+    """Finds the first YouTube trailer result for the game."""
+    try:
+        q = f"{game_name} official trailer"
+        url = f"https://www.youtube.com/results?search_query={requests.utils.quote(q)}"
+        r = requests.get(url, timeout=10)
+        
+        # Look for video IDs
+        import re
+        match = re.search(r"watch\?v=([A-Za-z0-9_-]{11})", r.text)
+        if match:
+            video_id = match.group(1)
+            return f"https://www.youtube.com/embed/{video_id}"
+    except:
+        pass
+    return None
+
+
+
+
+# Steam API
+
 
 def get_steam_game(appid, lang="english"):
     try:
@@ -121,6 +150,7 @@ def get_steam_game(appid, lang="english"):
         r.raise_for_status()
         j = r.json()
         key = str(appid)
+
         if key in j and j[key].get("success"):
             d = j[key]["data"]
             header_image = d.get("header_image")
@@ -128,6 +158,7 @@ def get_steam_game(appid, lang="english"):
             genres = [g.get("description") for g in d.get("genres", [])]
             price = d.get("price_overview", {}).get("final_formatted") or ("Free" if d.get("is_free") else "—")
 
+            # Steam trailer attempt
             trailer = None
             movies = d.get("movies") or []
             if movies:
@@ -137,6 +168,10 @@ def get_steam_game(appid, lang="english"):
                 if not trailer:
                     mp4 = first.get("mp4") or {}
                     trailer = mp4.get("max") or mp4.get("480")
+
+            # if Steam trailer missing, use YouTube fallback
+            if not trailer:
+                trailer = search_youtube_trailer(d.get("name"))
 
             return {
                 "appid": appid,
@@ -148,9 +183,12 @@ def get_steam_game(appid, lang="english"):
                 "store_link": f"https://store.steampowered.com/app/{appid}",
                 "trailer_url": trailer,
             }
+
     except Exception as e:
         print(f"[get_steam_game] error for {appid}: {e}")
+
     return None
+
 
 
 def fetch_top_sellers(limit=9):
@@ -167,29 +205,32 @@ def fetch_top_sellers(limit=9):
                     appid = item.get("id") or item.get("appid")
                     if appid:
                         sellers.append(int(appid))
+
             if isinstance(val, dict) and isinstance(val.get("items"), list):
                 for it in val["items"]:
                     appid = it.get("id") or it.get("appid")
                     if appid:
                         sellers.append(int(appid))
 
-        seen = set()
         out = []
+        seen = set()
+
         for a in sellers:
             if a not in seen:
-                seen.add(a)
                 out.append(a)
+                seen.add(a)
             if len(out) >= limit:
                 break
-        if out:
-            return out
-    except Exception as e:
-        print("[fetch_top_sellers] API error:", e)
+
+        return out
+    except:
+        return []
 
 
 
 
-from datetime import datetime
+# Jinja Filter
+
 
 @app.template_filter("datetimeformat")
 def datetimeformat(value):
@@ -199,16 +240,15 @@ def datetimeformat(value):
         return value
 
 
+
+
 # Routes
+
 
 @app.route("/")
 def index():
     top_ids = fetch_top_sellers(limit=9)
-    games = []
-    for aid in top_ids:
-        g = get_steam_game(aid)
-        if g:
-            games.append(g)
+    games = [get_steam_game(aid) for aid in top_ids if get_steam_game(aid)]
     return render_template("index.html", games=games)
 
 
@@ -220,11 +260,12 @@ def search():
         return redirect(url_for("index"))
 
     search_url = f"https://steamcommunity.com/actions/SearchApps/{requests.utils.requote_uri(q)}"
+
     try:
         r = requests.get(search_url, timeout=8)
         r.raise_for_status()
         results = r.json()
-    except Exception:
+    except:
         results = []
 
     enriched = []
@@ -252,9 +293,11 @@ def game_detail(appid):
 def add_review_route(appid):
     rating = request.form.get("rating")
     text = request.form.get("text")
+
     if not rating or not text.strip():
         flash("Please provide both a rating and a review.", "warning")
         return redirect(url_for("game_detail", appid=appid))
+
     add_review_db(appid, rating, text)
     flash("Review submitted!", "success")
     return redirect(url_for("game_detail", appid=appid))
@@ -271,9 +314,11 @@ def favourites_add():
     appid = request.form.get("appid")
     name = request.form.get("name")
     image = request.form.get("image")
+
     if not appid or not name:
         flash("Missing game details.", "warning")
         return redirect(request.referrer or url_for("index"))
+
     ok = add_favourite_db(appid, name, image)
     flash("Added to favourites." if ok else "Already in favourites.", "info")
     return redirect(request.referrer or url_for("favourites_page"))
@@ -282,22 +327,24 @@ def favourites_add():
 @app.route("/favourites/remove", methods=["POST"])
 def favourites_remove():
     appid = request.form.get("appid")
+
     if not appid:
         flash("No app specified.", "warning")
         return redirect(url_for("favourites_page"))
+
     removed = remove_favourite_db(appid)
     flash("Removed from favourites." if removed else "Not in favourites.", "info")
     return redirect(url_for("favourites_page"))
 
 
 
-
-
-# Auto-create database 
+# Auto-create database
 with app.app_context():
     db.create_all()
 
-# App start
+
+
+# Start
 if __name__ == "__main__":
     init_db()
     app.run(debug=True, port=5000)
